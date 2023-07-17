@@ -117,8 +117,8 @@ msgid "Minecraft admin"
 msgstr "Minecraft admin"
 
 #: bot\cogs\admin\mc.py:19
-msgid "添加白單"
-msgstr "add whitelist"
+msgid "add_member"
+msgstr "add_member"
 
 #: bot\cogs\admin\mc.py:20
 msgid "添加雲鎮二審成員 & 添加白名單"
@@ -146,7 +146,9 @@ msgstr "The identity group has been added"
 
 #: bot\cogs\admin\mc.py:61
 #, python-format
-msgid "已將 {user.mention} 添加二審身份組\n"
+msgid ""
+"已將 {user.mention} 添加二審身份組\n"
 "MC_ID: {mc_id}"
-msgstr "{user.mention} has been added to the second-instance identity groupn"
-"MC_ID: {mc_id}"
+msgstr ""
+"{user.mention} has been added to the second-instance identity groupnMC_ID: "
+"{mc_id}"

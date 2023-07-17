@@ -16,7 +16,7 @@ BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" / "BungeeWhitelist" / "con
 class MinecraftCog(BaseCog, name="Minecraft admin"):
     @discord.slash_command(
         guild_only=True,
-        i18n_name=_("添加白單"),
+        i18n_name=_("add_member"),
         i18n_description=_("添加雲鎮二審成員 & 添加白名單"),
     )
     @discord.option(
@@ -40,7 +40,7 @@ class MinecraftCog(BaseCog, name="Minecraft admin"):
 
         # 1049504039211118652 =>> 二審身分組 ID
         rule = ctx.guild.get_role(1049504039211118652)
-        await ctx.author.remove_roles(rule)
+        await ctx.author.add_roles(rule)
 
         # 添加白名單
         yaml_data = yaml.safe_load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
@@ -64,7 +64,7 @@ class MinecraftCog(BaseCog, name="Minecraft admin"):
                 ),
                 color=0x00FF00,
             ),
-            ephemeral=True,
+            # ephemeral=True,
         )
 
 
