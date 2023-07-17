@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import discord
@@ -55,8 +56,6 @@ class MinecraftCog(BaseCog, name="Minecraft admin"):
                 allow_unicode=True,
             )
 
-        # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
-        await user.send("恭喜你，你已獲得本伺服器二審身分，您當前已可進入伺服器遊玩\n請詳閱 <#1112748827099795577>")
         await ctx.respond(
             embed=Embed(
                 title=ctx._("身份組已添加完成"),
@@ -68,6 +67,24 @@ class MinecraftCog(BaseCog, name="Minecraft admin"):
             ),
             # ephemeral=True,
         )
+
+        # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
+        embed = Embed(
+            title="雲鎮工藝成員通知 - CT Member Notifications",
+            color=0x00FF00,
+            description=(
+                "恭喜你，你已獲得本伺服器二審身分，您當前已可進入伺服器遊玩\n請詳閱 <#1112748827099795577>\n\n"
+                "Congratulations, you have obtained the second instance status "
+                "of this server, you can currently enter the server to playnPlease "
+                "read <#1112748827099795577> carefully"
+            ),
+            timestamp=datetime.now(),
+        )
+        embed.set_footer(
+            text="雲鎮工藝 - CloudTown",
+            icon_url=ctx.guild.icon,
+        )
+        await user.send(embed=embed)
 
 
 def setup(bot: "Bot"):
