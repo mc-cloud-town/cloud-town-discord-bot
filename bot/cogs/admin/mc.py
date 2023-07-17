@@ -55,6 +55,8 @@ class MinecraftCog(BaseCog, name="Minecraft admin"):
                 allow_unicode=True,
             )
 
+        # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
+        await user.send("恭喜你，你已獲得本伺服器二審身分，您當前已可進入伺服器遊玩\n請詳閱 <#1112748827099795577>")
         await ctx.respond(
             embed=Embed(
                 title=ctx._("身份組已添加完成"),
