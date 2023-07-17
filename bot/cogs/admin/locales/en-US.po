@@ -111,3 +111,42 @@ msgstr "Reason: {reason}"
 #: bot\cogs\admin\clear.py:129
 msgid "訊息刪除成功!"
 msgstr "Message delete successfully"
+
+#: bot\cogs\admin\mc.py:16
+msgid "Minecraft admin"
+msgstr "Minecraft admin"
+
+#: bot\cogs\admin\mc.py:19
+msgid "添加白單"
+msgstr "add whitelist"
+
+#: bot\cogs\admin\mc.py:20
+msgid "添加雲鎮二審成員 & 添加白名單"
+msgstr "Add members of the second instance of CT & add a whitelist"
+
+#: bot\cogs\admin\mc.py:25 bot\cogs\admin\mc.py:26
+msgid "對應的 DC 成員"
+msgstr "Corresponding DC member"
+
+#: bot\cogs\admin\mc.py:31
+msgid "Minecraft ID"
+msgstr "Minecraft ID"
+
+#: bot\cogs\admin\mc.py:32
+msgid "該用戶的 MC_ID"
+msgstr "The user's MC_ID"
+
+#: bot\cogs\admin\mc.py:38
+msgid "你並非審核人員，無法使用此指令"
+msgstr "You are not an auditor and cannot use this directive"
+
+#: bot\cogs\admin\mc.py:60
+msgid "身份組已添加完成"
+msgstr "The identity group has been added"
+
+#: bot\cogs\admin\mc.py:61
+#, python-format
+msgid "已將 {user.mention} 添加二審身份組\n"
+"MC_ID: {mc_id}"
+msgstr "{user.mention} has been added to the second-instance identity groupn"
+"MC_ID: {mc_id}"
