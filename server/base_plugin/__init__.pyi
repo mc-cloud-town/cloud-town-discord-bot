@@ -1,0 +1,3 @@
+from .. import BaseServer
+
+def setup(server: BaseServer): ...

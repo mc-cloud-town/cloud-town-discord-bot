@@ -1,0 +1,43 @@
+import discord
+from _typeshed import Incomplete
+from asyncio import AbstractEventLoop
+from discord import ApplicationContext as ApplicationContext, Message as Message, Reaction as Reaction, TextChannel as TextChannel, User as User
+from discord.ext import commands
+from server import Plugin
+from server.utils import FormatMessage
+from typing import Optional
+
+class Bot(commands.Bot):
+    plugin: Incomplete
+    log: Incomplete
+    config: Incomplete
+    server: Incomplete
+    def __init__(self, plugin: Plugin, loop: AbstractEventLoop | None = ...) -> None: ...
+    @property
+    def chat_channel(self) -> int | None: ...
+    async def get_or_fetch_channel(self, id: int) -> TextChannel | None: ...
+    async def on_ready(self) -> None: ...
+    async def get_reference_message(self, msg: Message) -> Optional[Message]: ...
+    def style_message(self, msg: Message) -> list[FormatMessage]: ...
+    async def on_message(self, msg: Message): ...
+    async def get_or_fetch_message(self, id: int, channel: TextChannel) -> Optional[Message]: ...
+
+class BaseCog(discord.Cog):
+    bot: Incomplete
+    log: Incomplete
+    plugin: Incomplete
+    config: Incomplete
+    server: Incomplete
+    def __init__(self, bot: Bot) -> None: ...
+
+class BotCommand(BaseCog):
+    bot: Incomplete
+    log: Incomplete
+    plugin: Incomplete
+    config: Incomplete
+    server: Incomplete
+    def __init__(self, bot: Bot) -> None: ...
+    async def stats(self, ctx: ApplicationContext, *args): ...
+    async def online(self, ctx: ApplicationContext): ...
+
+def fix_msg(msg: str): ...

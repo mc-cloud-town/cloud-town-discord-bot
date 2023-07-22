@@ -1,0 +1,3 @@
+from .. import Plugin as Plugin
+
+class BasePlugin(Plugin): ...
