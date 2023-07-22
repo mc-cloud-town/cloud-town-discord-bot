@@ -60,7 +60,7 @@ WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
 ### :warning: 注意，請看完上面的規定，如果你不同意，請不要加入，加入即代表你同意並詳細讀完以上規定"""
 
 
-class MinecraftCog(BaseCog, name="Minecraft admin"):
+class MinecraftCog(BaseCog):
     @discord.slash_command(
         guild_only=True,
         i18n_name="add_member",

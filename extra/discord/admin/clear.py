@@ -1,10 +1,10 @@
 import discord
 from discord import ApplicationContext, Embed, Member, Message
 
-from plugins.discord.client import Bot
+from plugins.discord.client import BaseCog, Bot
 
 
-class ClearCog(name="管理"):
+class ClearCog(BaseCog):
     @discord.slash_command(
         guild_only=True,
         name="刪除",
