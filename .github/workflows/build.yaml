@@ -24,9 +24,11 @@ jobs:
 
       - name: releaser
         run: |
+          cd extra
+          git init
           git config --global user.name "$user_name"
           git config --global user.email "$user_email"
-          git add -f extra
+          git add -f .
           git commit -m "${{ github.event.head_commit.message }}"
           git push -f https://_:"$token"@github.com/"$repository".git "$ref_name":releaser
         shell: bash
