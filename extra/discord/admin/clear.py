@@ -11,19 +11,8 @@ class ClearCog(BaseCog):
         description="刪除一個訊息",
     )
     @discord.default_permissions(manage_messages=True)
-    @discord.option(
-        "message_id",
-        str,
-        name="訊息id",
-        description="要刪除的訊息 ID",
-    )
-    @discord.option(
-        "reason",
-        str,
-        name="原因",
-        description="刪除訊息的原因",
-        default="",
-    )
+    @discord.option("message_id", str)
+    @discord.option("reason", str, default="")
     async def delete(self, ctx: ApplicationContext, message_id: str, reason: str):
         message: Message = await ctx.fetch_message(int(message_id))
         author = ctx.author
@@ -43,42 +32,11 @@ class ClearCog(BaseCog):
         description="刪除大量訊息",
     )
     @discord.default_permissions(manage_messages=True)
-    @discord.option(
-        "reason",
-        str,
-        name="原因",
-        description="原因",
-        default=None,
-    )
-    @discord.option(
-        "member",
-        Member,
-        name="成員",
-        description="要刪除的成員訊息",
-        default=None,
-    )
-    @discord.option(
-        "count",
-        int,
-        name="數量",
-        description="輸入要刪除的訊息數量",
-        min_value=1,
-        max_value=512,
-    )
-    @discord.option(
-        "before",
-        str,
-        name="以前",
-        description="刪除這則訊息以前的訊息(請輸入訊息ID)",
-        default=None,
-    )
-    @discord.option(
-        "after",
-        str,
-        name="之後",
-        description="刪除以這則訊息以後的訊息(請輸入訊息ID)",
-        default=None,
-    )
+    @discord.option("reason", str, default=None)
+    @discord.option("member", Member, default=None)
+    @discord.option("count", int, min_value=1, max_value=512)
+    @discord.option("before", str, default=None)
+    @discord.option("after", str, default=None)
     async def purge(
         self,
         ctx: ApplicationContext,

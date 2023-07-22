@@ -63,21 +63,11 @@ WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
 class MinecraftCog(BaseCog):
     @discord.slash_command(
         guild_only=True,
-        i18n_name="add_member",
-        i18n_description="添加雲鎮二審成員 & 添加白名單",
+        name="add_member",
+        description="添加雲鎮二審成員 & 添加白名單",
     )
-    @discord.option(
-        "user",
-        Member,
-        i18n_name="對應的 DC 成員",
-        i18n_description="對應的 DC 成員",
-    )
-    @discord.option(
-        "mc_id",
-        str,
-        i18n_name="Minecraft ID",
-        i18n_description="該用戶的 MC_ID",
-    )
+    @discord.option("user", Member)
+    @discord.option("mc_id", str)
     async def add_member(self, ctx: ApplicationContext, user: Member, mc_id: str):
         # 1043786472207167558 =>> 審核身分組 ID
         # 933383039604637766 =>> admin 身分組 ID
