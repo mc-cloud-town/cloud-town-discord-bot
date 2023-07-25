@@ -72,7 +72,7 @@ class MinecraftCog(BaseCog):
         # 1043786472207167558 =>> 審核身分組 ID
         # 933383039604637766 =>> admin 身分組 ID
         if ctx.author.id in (1043786472207167558, 933383039604637766):
-            await ctx.respond(ctx._("你並非審核人員，無法使用此指令"))
+            await ctx.respond("你並非審核人員，無法使用此指令")
             return
 
         # 1049504039211118652 =>> 二審身分組 ID
@@ -94,11 +94,8 @@ class MinecraftCog(BaseCog):
 
         await ctx.respond(
             embed=Embed(
-                title=ctx._("身份組已添加完成"),
-                description=ctx._("已將 {user.mention} 添加二審身份組\nMC_ID: {mc_id}").format(
-                    user=user,
-                    mc_id=mc_id,
-                ),
+                title="身份組已添加完成",
+                description=f"已將 {user.mention} 添加二審身份組\nMC_ID: {mc_id}",
                 color=0x00FF00,
             ),
             # ephemeral=True,
