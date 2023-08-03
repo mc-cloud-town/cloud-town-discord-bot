@@ -14,7 +14,7 @@ IP_MESSAGE = [
 
 
 class GameCog(BaseCog):
-    @discord.Cog.listener
+    @discord.Cog.listener()
     async def on_message(self, message: Message) -> None:
         if "ip" in message.content:
             await message.channel.send(random.choice(IP_MESSAGE))
