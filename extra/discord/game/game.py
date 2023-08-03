@@ -1,6 +1,7 @@
 import random
 
-from discord import Cog, Message
+from discord import Message
+import discord
 
 from plugins.discord.client import BaseCog, Bot
 
@@ -12,12 +13,12 @@ IP_MESSAGE = [
 ]
 
 
-class MinecraftCog(BaseCog):
-    @Cog.listener
+class GameCog(BaseCog):
+    @discord.Cog.listener
     async def on_message(self, message: Message) -> None:
         if "ip" in message.content:
             await message.channel.send(random.choice(IP_MESSAGE))
 
 
 def setup(bot: "Bot"):
-    bot.add_cog(MinecraftCog(bot))
+    bot.add_cog(GameCog(bot))
