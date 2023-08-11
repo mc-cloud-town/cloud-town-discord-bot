@@ -81,10 +81,12 @@ class MinecraftCog(BaseCog):
             ctx.author.roles,
         )
         if not list(roles):
-            await ctx.respond("你並非管理人員，無法使用此指令")
+            await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
             return
 
+        text = []
         if mc_id:
+            text.append(f"MC_ID: {mc_id}")
             # 添加白名單
             yaml_data = yaml.safe_load(
                 BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8")
@@ -101,17 +103,11 @@ class MinecraftCog(BaseCog):
                 )
 
         if user:
+            text.append(f"已將 {user.mention} 添加二審身份組")
+
             # 1049504039211118652 =>> 二審身分組 ID
             rule = ctx.guild.get_role(1049504039211118652)
             await ctx.author.add_roles(rule)
-            await ctx.respond(
-                embed=Embed(
-                    title="身份組已添加完成",
-                    description=f"已將 {user.mention} 添加二審身份組\nMC_ID: {mc_id}",
-                    color=0x00FF00,
-                ),
-                # ephemeral=True,
-            )
 
             # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
             embed = Embed(
@@ -130,6 +126,15 @@ class MinecraftCog(BaseCog):
                 icon_url=ctx.guild.icon,
             )
             await user.send(WARN_MESSAGE, embed=embed)
+
+        await ctx.respond(
+            embed=Embed(
+                title="添加完成",
+                description="\n".join(text),
+                color=0x00FF00,
+            ),
+            # ephemeral=True,
+        )
 
 
 def setup(bot: "Bot"):
