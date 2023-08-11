@@ -64,60 +64,72 @@ class MinecraftCog(BaseCog):
     @discord.slash_command(
         guild_only=True,
         name="add_member",
-        description="添加雲鎮二審成員 & 添加白名單",
+        description="添加雲鎮二審成員 || 添加白名單",
     )
-    @discord.option("user", Member)
-    @discord.option("mc_id", str)
-    async def add_member(self, ctx: ApplicationContext, user: Member, mc_id: str):
-        # 1043786472207167558 =>> 審核身分組 ID
-        # 933383039604637766 =>> admin 身分組 ID
-        if ctx.author.id in (1043786472207167558, 933383039604637766):
-            await ctx.respond("你並非審核人員，無法使用此指令")
+    @discord.option("user", Member, default=None)
+    @discord.option("mc_id", str, default=None)
+    async def add_member(
+        self,
+        ctx: ApplicationContext,
+        user: Member | None,
+        mc_id: str | None,
+    ):
+        roles = filter(
+            # 1043786472207167558 =>> 審核身分組 ID
+            # 933383039604637766 =>> admin 身分組 ID
+            lambda x: x.id in (1043786472207167558, 933383039604637766),
+            ctx.author.roles,
+        )
+        if not list(roles):
+            await ctx.respond("你並非管理人員，無法使用此指令")
             return
 
-        # 1049504039211118652 =>> 二審身分組 ID
-        rule = ctx.guild.get_role(1049504039211118652)
-        await ctx.author.add_roles(rule)
+        if mc_id:
+            # 添加白名單
+            yaml_data = yaml.safe_load(
+                BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8")
+            )
+            whitelisted: list[str] = yaml_data["whitelist"]["global"]["whitelisted"]
 
-        # 添加白名單
-        yaml_data = yaml.safe_load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
-        whitelisted: list[str] = yaml_data["whitelist"]["global"]["whitelisted"]
+            if mc_id not in set(whitelisted):
+                whitelisted.append(mc_id)
 
-        if mc_id not in set(whitelisted):
-            whitelisted.append(mc_id)
+                yaml.dump(
+                    yaml_data,
+                    BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
+                    allow_unicode=True,
+                )
 
-            yaml.dump(
-                yaml_data,
-                BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
-                allow_unicode=True,
+        if user:
+            # 1049504039211118652 =>> 二審身分組 ID
+            rule = ctx.guild.get_role(1049504039211118652)
+            await ctx.author.add_roles(rule)
+            await ctx.respond(
+                embed=Embed(
+                    title="身份組已添加完成",
+                    description=f"已將 {user.mention} 添加二審身份組\nMC_ID: {mc_id}",
+                    color=0x00FF00,
+                ),
+                # ephemeral=True,
             )
 
-        await ctx.respond(
-            embed=Embed(
-                title="身份組已添加完成",
-                description=f"已將 {user.mention} 添加二審身份組\nMC_ID: {mc_id}",
+            # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
+            embed = Embed(
+                title="雲鎮工藝成員通知 - CT Member Notifications",
                 color=0x00FF00,
-            ),
-            # ephemeral=True,
-        )
-
-        # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
-        embed = Embed(
-            title="雲鎮工藝成員通知 - CT Member Notifications",
-            color=0x00FF00,
-            description=(
-                "恭喜你，你已獲得本伺服器二審身分，您當前已可進入伺服器遊玩\n請詳閱 <#1112748827099795577>\n\n"
-                "Congratulations, you have obtained the second instance status "
-                "of this server, you can currently enter the server to playnPlease "
-                "read <#1112748827099795577> carefully"
-            ),
-            timestamp=datetime.now(),
-        )
-        embed.set_footer(
-            text="雲鎮工藝 - CloudTown",
-            icon_url=ctx.guild.icon,
-        )
-        await user.send(WARN_MESSAGE, embed=embed)
+                description=(
+                    "恭喜你，你已獲得本伺服器二審身分，您當前已可進入伺服器遊玩\n請詳閱 <#1112748827099795577>\n\n"
+                    "Congratulations, you have obtained the second instance status "
+                    "of this server, you can currently enter the server to playnPlease "
+                    "read <#1112748827099795577> carefully"
+                ),
+                timestamp=datetime.now(),
+            )
+            embed.set_footer(
+                text="雲鎮工藝 - CloudTown",
+                icon_url=ctx.guild.icon,
+            )
+            await user.send(WARN_MESSAGE, embed=embed)
 
 
 def setup(bot: "Bot"):
