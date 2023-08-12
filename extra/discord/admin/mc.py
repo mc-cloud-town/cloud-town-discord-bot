@@ -103,11 +103,13 @@ class MinecraftCog(BaseCog):
                 )
 
         if user:
-            text.append(f"已將 {user.mention} 添加二審身份組")
+            text.append(f"已將 {user.mention} 添加 二審 & 打工 身份組")
 
-            # 1049504039211118652 =>> 二審身分組 ID
-            rule = ctx.guild.get_role(1049504039211118652)
-            await ctx.author.add_roles(rule)
+            # 1049504039211118652 =>> 二審  身分組 ID
+            # 1138650736872399008 =>> smp   身分組 ID
+            for role_id in (1049504039211118652, 1138650736872399008):
+                role = ctx.guild.get_role(role_id)
+                await user.add_roles(role)
 
             # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
             embed = Embed(
