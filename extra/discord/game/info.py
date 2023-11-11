@@ -44,7 +44,7 @@ class InfoCog(BaseCog):
         embed = Embed()
         for k, v in ServerInfo.from_data(self.prometheus).items():
             embed.add_field(
-                name=k["metric"]["job"],
+                name=k,
                 value=f"TPS: {v.mspt:.2f}\nMSPT: {v.mspt:.2f}",
                 inline=True,
             )
