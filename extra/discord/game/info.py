@@ -1,8 +1,8 @@
 import os
+from datetime import datetime
 from dataclasses import dataclass
 
-
-from discord import Embed
+from discord import Color, Embed
 from discord.ext import commands
 from discord.ext.commands import Context
 from prometheus_api_client import PrometheusConnect
@@ -41,13 +41,18 @@ class InfoCog(BaseCog):
 
     @commands.command()
     async def info(self, ctx: Context):
-        embed = Embed()
+        embed = Embed(color=Color.random(), timestamp=datetime.now())
         for k, v in ServerInfo.from_data(self.prometheus).items():
             embed.add_field(
                 name=k,
                 value=f"TPS: {v.mspt:.2f}\nMSPT: {v.mspt:.2f}",
                 inline=True,
             )
+
+        embed.set_footer(
+            text="雲鎮工藝 - CloudTown",
+            icon_url=ctx.guild.icon,
+        )
 
         await ctx.send(embed=embed)
 
