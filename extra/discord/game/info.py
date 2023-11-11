@@ -25,7 +25,7 @@ class ServerInfo:
             job = d["metric"]["job"]
             result[job] = {
                 **result.get(job, {}),
-                d["metric"]["type"]: float(d["value"]),
+                d["metric"]["type"]: float(d["value"][1]),
             }
 
         return {k: cls(k, v.get("tick"), v.get("mspt")) for k, v in result.items()}
