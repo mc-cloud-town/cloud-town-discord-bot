@@ -33,7 +33,8 @@ class ServerInfo:
 
 class InfoCog(BaseCog):
     def __init__(self, bot: Bot) -> None:
-        super(bot)
+        super().__init__(bot)
+
         self.prometheus = PrometheusConnect(
             os.getenv("PROMETHEUS_URL", "http://127.0.0.1:9090")
         )
