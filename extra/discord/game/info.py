@@ -28,7 +28,7 @@ class ServerInfo:
                 d["metric"]["type"]: float(d["value"][1]),
             }
 
-        return {k: cls(k, v.get("tick"), v.get("mspt")) for k, v in result.items()}
+        return {k: cls(k, v.get("tps"), v.get("mspt")) for k, v in result.items()}
 
 
 class InfoCog(BaseCog):
@@ -45,7 +45,7 @@ class InfoCog(BaseCog):
         for k, v in ServerInfo.from_data(self.prometheus).items():
             embed.add_field(
                 name=k,
-                value=f"TPS: {v.mspt:.2f}\nMSPT: {v.mspt:.2f}",
+                value=f"TPS: {v.tps:.2f}\nMSPT: {v.mspt:.2f}",
                 inline=True,
             )
 
