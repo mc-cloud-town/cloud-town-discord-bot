@@ -13,7 +13,7 @@ BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" / "BungeeWhitelist" / "con
 
 WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
 
-如無法加入者請至 <#1000064736928473168> 張貼錯誤訊息截圖會有專人為您服務 :emoji_15:
+如無法加入者請至 <#1000064736928473168> 張貼錯誤訊息截圖會有專人為您服務 <:ctecskin1:1172165911172624464>
 
 ## 伺服器資訊
 
