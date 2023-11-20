@@ -61,6 +61,18 @@ WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
 
 
 class MinecraftCog(BaseCog):
+    async def check_role(self, ctx: ApplicationContext):
+        roles = filter(
+            # 1043786472207167558 =>> 審核身分組 ID
+            # 933383039604637766 =>> admin 身分組 ID
+            lambda x: x.id in (1043786472207167558, 933383039604637766),
+            ctx.author.roles,
+        )
+        if not list(roles):
+            await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
+            return False
+        return True
+
     @discord.slash_command(
         guild_only=True,
         name="add_member",
@@ -74,14 +86,7 @@ class MinecraftCog(BaseCog):
         user: Member | None,
         mc_id: str | None,
     ):
-        roles = filter(
-            # 1043786472207167558 =>> 審核身分組 ID
-            # 933383039604637766 =>> admin 身分組 ID
-            lambda x: x.id in (1043786472207167558, 933383039604637766),
-            ctx.author.roles,
-        )
-        if not list(roles):
-            await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
+        if not await self.check_role(ctx):
             return
 
         text = []
@@ -137,6 +142,36 @@ class MinecraftCog(BaseCog):
             ),
             # ephemeral=True,
         )
+
+    @discord.slash_command(
+        guild_only=True,
+        name="del_member",
+        description="移除雲鎮白名單",
+    )
+    @discord.option("mc_id", str)
+    async def del_member(
+        self,
+        ctx: ApplicationContext,
+        mc_id: str,
+    ):
+        if not await self.check_role(ctx):
+            return
+
+        # 移除白名單
+        yaml_data = yaml.safe_load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
+        whitelisted: list[str] = yaml_data["whitelist"]["global"]["whitelisted"]
+
+        if mc_id in set(whitelisted):
+            whitelisted.remove(mc_id)
+
+            yaml.dump(
+                yaml_data,
+                BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
+                allow_unicode=True,
+            )
+            await ctx.send(f"{mc_id} 以從白名單內移除")
+        else:
+            await ctx.send(f"{mc_id} 不在白名單內")
 
 
 def setup(bot: "Bot"):
