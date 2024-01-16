@@ -1,9 +1,19 @@
 from datetime import datetime
 from pathlib import Path
 
-import discord
-from discord import ApplicationContext, Embed, Member
 import yaml
+import discord
+from discord import (
+    ApplicationContext,
+    Guild,
+    Interaction,
+    SelectOption,
+    Member,
+    Embed,
+    ButtonStyle,
+)
+from discord.embeds import EmptyEmbed
+from discord.ui import InputText, View, Modal, Select, Button, select, button
 
 from plugins.discord.client import BaseCog, Bot
 
@@ -60,101 +70,229 @@ WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
 ### :warning: 注意，請看完上面的規定，如果你不同意，請不要加入，加入即代表你同意並詳細讀完以上規定"""
 
 
-class MinecraftCog(BaseCog):
-    async def check_role(self, ctx: ApplicationContext):
+BASE_GUILD_ID = 933290709589577728  # 伺服器 ID
+SMP_ROLE_ID = 1003709216000839761  # 生存服玩家/後勤
+CMP_ROLE_ID = 1003649146244313189  # 創造服開發者
+ARCHITECT_ROLE_ID = 1003649146244313189  # 建築組
+FIRST_INSTANCE_ROLE_ID = 1000090304671666306  # 一審[通過表單等待審核]
+SECOND_INSTANCE_ROLE_ID = 1049504039211118652  # 通過二審語音
+
+# for-testing
+# BASE_GUILD_ID = 803099240800714802  # 伺服器 ID
+# SMP_ROLE_ID = 1196581001695084615  # 生存服玩家/後勤
+# CMP_ROLE_ID = 1196581137288528054  # 創造服開發者
+# ARCHITECT_ROLE_ID = 1196581195060879401  # 建築組
+# FIRST_INSTANCE_ROLE_ID = 1196581237477879808  # 一審[通過表單等待審核]
+# SECOND_INSTANCE_ROLE_ID = 1196581281585184768  # 通過二審語音
+
+NAME_ROLES_ID_MAP = {
+    "SMP": SMP_ROLE_ID,
+    "CMP": CMP_ROLE_ID,
+    "architect": ARCHITECT_ROLE_ID,
+    "first_instance": FIRST_INSTANCE_ROLE_ID,
+    "second_instance": SECOND_INSTANCE_ROLE_ID,
+}
+
+
+def add_whitelist(mc_id: str) -> bool:
+    """添加白名單"""
+    yaml_data = yaml.safe_load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
+    whitelisted: list[str] = yaml_data["whitelist"]["global"]["whitelisted"]
+
+    if mc_id not in set(whitelisted):
+        whitelisted.append(mc_id)
+
+        yaml.dump(
+            yaml_data,
+            BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
+            allow_unicode=True,
+        )
+        return True
+    return False
+
+
+async def check_role(base_guild: Guild, ctx: ApplicationContext) -> bool:
+    if member := await base_guild.fetch_member(ctx.author.id):
         roles = filter(
             # 1043786472207167558 =>> 審核身分組 ID
-            # 933383039604637766 =>> admin 身分組 ID
+            #  933383039604637766 =>> admin 身分組 ID
+            # (1043786472207167558, 933383039604637766)
+            # For-test
+            # (1196795438477623427, 1196795390914203690)
             lambda x: x.id in (1043786472207167558, 933383039604637766),
-            ctx.author.roles,
+            member.roles,
         )
-        if not list(roles):
-            await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
-            return False
-        return True
+        if list(roles):
+            return True
+    await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
+    return False
 
-    @discord.slash_command(
-        guild_only=True,
-        name="add_member",
-        description="添加雲鎮二審成員 || 添加白名單",
+
+class MyView(View):
+    def __init__(self, member: Member, bot: "Bot", base_guild: Guild) -> None:
+        super().__init__(timeout=20)
+        self.member = member
+        self.bot = bot
+        self.base_guild = base_guild
+
+        def _map_from_options(*option: SelectOption) -> dict[str, SelectOption]:
+            return {o.value: o for o in option}
+
+        self.role_options: dict[str, SelectOption] = _map_from_options(
+            SelectOption(label="生存服玩家/後勤", value="SMP"),
+            SelectOption(label="創造服開發者", value="CMP"),
+            SelectOption(label="建築組", value="architect"),
+        )
+        self.instances_options = _map_from_options(
+            SelectOption(label="一審", value="first_instance"),
+            SelectOption(label="二審", value="second_instance"),
+        )
+
+        roles_id = [role.id for role in member.roles]
+        if SMP_ROLE_ID in roles_id:
+            self.role_options["SMP"].default = True
+        if CMP_ROLE_ID in roles_id:
+            self.role_options["CMP"].default = True
+        if ARCHITECT_ROLE_ID in roles_id:
+            self.role_options["architect"].default = True
+
+        if FIRST_INSTANCE_ROLE_ID in roles_id:
+            self.instances_options["first_instance"].default = True
+        if SECOND_INSTANCE_ROLE_ID in roles_id:
+            self.instances_options["second_instance"].default = True
+
+        select_role: Select = self.get_item("add_member:select_role")
+        select_role.options.extend(self.role_options.values())
+        select_role.max_values = len(select_role.options)
+
+        select_status: Select = self.get_item("add_member:select_status")
+        select_status.options.extend(self.instances_options.values())
+
+    def _change_default(self, ids: list[str], data: dict[str, SelectOption]) -> None:
+        for option in data.values():
+            option.default = option.value in ids
+
+    async def update_user(self) -> None:
+        member = await self.base_guild.fetch_member(self.member.id)
+        roles_id = [role.id for role in member.roles]
+
+        for id, option in {**self.role_options, **self.instances_options}.items():
+            role_id = NAME_ROLES_ID_MAP[id]
+            role = self.base_guild.get_role(role_id)
+
+            if role is None:
+                print(f"Role {id} not found")
+                continue
+            if option.default:
+                if role_id not in roles_id:
+                    print(f"add {role.name}")
+                    await self.member.add_roles(role)
+            elif role_id in roles_id:
+                print(f"remove {role.name}")
+                await self.member.remove_roles(role)
+
+    @select(custom_id="add_member:select_role", placeholder="請選擇成員組別", min_values=0)
+    async def select_role(self, select: Select, interaction: Interaction) -> None:
+        self._change_default(select.values, self.role_options)
+        await self.update_user()
+        await interaction.response.edit_message(view=self)
+
+    @select(custom_id="add_member:select_status", placeholder="請選擇成員狀態", min_values=0)
+    async def select_status(self, select: Select, interaction: Interaction) -> None:
+        self._change_default(select.values, self.instances_options)
+        await self.update_user()
+        await interaction.response.edit_message(view=self)
+
+    @button(label="添加白名單", style=ButtonStyle.green, custom_id="add_whitelist")
+    async def add_whitelist(self, button: Button, interaction: Interaction) -> None:
+        await interaction.response.send_modal(WhitelistModal(self.base_guild))
+
+    @button(
+        label="預設[SMP&二審&發送DM]",
+        style=ButtonStyle.primary,
+        custom_id="base_second_instance",
     )
-    @discord.option("user", Member, default=None)
-    @discord.option("mc_id", str, default=None)
-    async def add_member(
+    async def base_second_instance(
         self,
-        ctx: ApplicationContext,
-        user: Member | None,
-        mc_id: str | None,
-    ):
-        if not await self.check_role(ctx):
-            return
+        button: Button,
+        interaction: Interaction,
+    ) -> None:
+        self.role_options["SMP"].default = True
+        self.instances_options["first_instance"].default = False
+        self.instances_options["second_instance"].default = True
+        await self.update_user()
 
-        text = []
-        if mc_id:
-            text.append(f"MC_ID: {mc_id}")
-            # 添加白名單
-            yaml_data = yaml.safe_load(
-                BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8")
-            )
-            whitelisted: list[str] = yaml_data["whitelist"]["global"]["whitelisted"]
-
-            if mc_id not in set(whitelisted):
-                whitelisted.append(mc_id)
-
-                yaml.dump(
-                    yaml_data,
-                    BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
-                    allow_unicode=True,
-                )
-
-        if user:
-            text.append(f"已將 {user.mention} 添加 二審 & 打工 身份組")
-
-            # 1049504039211118652 =>> 二審  身分組 ID
-            # 1138650736872399008 =>> smp   身分組 ID
-            for role_id in (1049504039211118652, 1138650736872399008):
-                role = ctx.guild.get_role(role_id)
-                await user.add_roles(role)
-
-            # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
-            embed = Embed(
-                title="雲鎮工藝成員通知 - CT Member Notifications",
-                color=0x00FF00,
-                description=(
-                    "恭喜你，你已獲得本伺服器二審身分，您當前已可進入伺服器遊玩\n請詳閱 <#1112748827099795577>\n\n"
-                    "Congratulations, you have obtained the second instance status "
-                    "of this server, you can currently enter the server to playnPlease "
-                    "read <#1112748827099795577> carefully"
-                ),
-                timestamp=datetime.now(),
-            )
-            embed.set_footer(
-                text="雲鎮工藝 - CloudTown",
-                icon_url=ctx.guild.icon,
-            )
-            await user.send(WARN_MESSAGE, embed=embed)
-
-        await ctx.respond(
-            embed=Embed(
-                title="添加完成",
-                description="\n".join(text),
-                color=0x00FF00,
+        # 1112748827099795577 =>> 伺服器資訊-server-info 頻道
+        embed = Embed(
+            title="雲鎮工藝成員通知 - CT Member Notifications",
+            color=0x00FF00,
+            description=(
+                "恭喜你，你已獲得本伺服器二審身分，您當前已可進入伺服器遊玩\n請詳閱 <#1112748827099795577>\n\n"
+                "Congratulations, you have obtained the second instance status "
+                "of this server, you can currently enter the server to playnPlease "
+                "read <#1112748827099795577> carefully"
             ),
-            # ephemeral=True,
+            timestamp=datetime.now(),
         )
+        embed.set_footer(
+            text="雲鎮工藝 - CloudTown",
+            icon_url=icon.url if (icon := self.base_guild.icon) else EmptyEmbed,
+        )
+        await self.member.send(WARN_MESSAGE, embed=embed)
+
+        await interaction.response.send_modal(WhitelistModal(self.base_guild))
+        await self.on_timeout()
+
+    async def on_timeout(self) -> None:
+        self.disable_all_items()
+        await self.message.edit(view=self)
+
+
+class WhitelistModal(Modal):
+    def __init__(self, base_guild: Guild) -> None:
+        super().__init__(
+            InputText(
+                label="Minecraft ID",
+                custom_id="minecraft_id",
+                placeholder="Minecraft ID",
+            ),
+            title="添加白名單",
+        )
+        self.base_guild = base_guild
+
+    async def callback(self, interaction: Interaction) -> None:
+        minecraft_id = self.children[0].value
+        add_whitelist(minecraft_id)
+
+        embed = Embed(
+            description="用戶添加完畢",
+            color=discord.Color.random(),
+        )
+        embed.add_field(name="Minecraft ID", value=minecraft_id)
+
+        await interaction.response.send_message(
+            embed=embed,
+            ephemeral=True,
+        )
+
+
+class MinecraftCog(BaseCog):
+    def __init__(self, bot: Bot) -> None:
+        super().__init__(bot)
+        self.base_guild = self.bot.get_guild(BASE_GUILD_ID)
 
     @discord.slash_command(
         guild_only=True,
-        name="del_member",
+        name="del_whitelist",
         description="移除雲鎮白名單",
     )
     @discord.option("mc_id", str)
-    async def del_member(
+    async def del_whitelist(
         self,
         ctx: ApplicationContext,
         mc_id: str,
     ):
-        if not await self.check_role(ctx):
+        if not await check_role(ctx):
             return
 
         # 移除白名單
@@ -172,6 +310,35 @@ class MinecraftCog(BaseCog):
             await ctx.send(f"{mc_id} 以從白名單內移除")
         else:
             await ctx.send(f"{mc_id} 不在白名單內")
+
+    @button(label="添加白名單", style=ButtonStyle.green, custom_id="add_whitelist")
+    async def add_whitelist(self, ctx: ApplicationContext) -> None:
+        if not await check_role(self.base_guild, ctx):
+            return
+
+        await ctx.response.send_modal(WhitelistModal(self.base_guild))
+
+    @discord.user_command(name="添加成員")
+    async def add_member(self, ctx: ApplicationContext, member: Member) -> None:
+        await self.add_member_command(ctx, member)
+
+    @discord.slash_command(name="添加成員")
+    async def add_member_command(
+        self,
+        ctx: ApplicationContext,
+        member: Member,
+    ) -> None:
+        if not await check_role(self.base_guild, ctx):
+            return
+
+        await ctx.response.send_message(
+            view=MyView(member, self.bot, self.base_guild),
+            ephemeral=True,
+        )
+
+    async def cog_before_invoke(self, ctx: ApplicationContext) -> None:
+        if not self.base_guild:
+            self.base_guild = await self.bot.fetch_guild(BASE_GUILD_ID)
 
 
 def setup(bot: "Bot"):
