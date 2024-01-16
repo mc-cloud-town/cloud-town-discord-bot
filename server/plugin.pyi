@@ -7,7 +7,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable, ClassVar, Optional, Type, TypeVar
 
-T = TypeVar("T", bound="Plugin")
+T = TypeVar('T', bound='Plugin')
 
 class PluginMeta(type):
     __plugin_name__: str
@@ -24,6 +24,7 @@ class Plugin(metaclass=PluginMeta):
     loop: Incomplete
     server_config: Incomplete
     log: Incomplete
+    console: Incomplete
     config: Incomplete
     def __init__(self, server: BaseServer) -> None: ...
     def _inject(self, server: BaseServer) -> T: ...
@@ -32,9 +33,7 @@ class Plugin(metaclass=PluginMeta):
     def on_unload(self) -> None: ...
     def on_unload_before(self) -> None: ...
     @classmethod
-    def listener(
-        cls, name: str | CoroFuncT = ...
-    ) -> Callable[[CoroFuncT], CoroFuncT]: ...
+    def listener(cls, name: str | CoroFuncT = ...) -> Callable[[CoroFuncT], CoroFuncT]: ...
 
 class PluginMixin:
     __plugins: Incomplete

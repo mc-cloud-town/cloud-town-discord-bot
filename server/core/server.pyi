@@ -19,6 +19,7 @@ class BaseServer(PluginMixin):
     app: Incomplete
     command_manager: Incomplete
     log: Incomplete
+    console: Incomplete
     config: Incomplete
     plugins_dir: Incomplete
     def __init__(self, config_type: str = ..., loop: AbstractEventLoop | None = ...) -> None: ...
