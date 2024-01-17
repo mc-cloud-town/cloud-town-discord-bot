@@ -307,16 +307,16 @@ class MinecraftCog(BaseCog):
         else:
             await ctx.send(f"{mc_id} 不在白名單內")
 
-    @discord.user_command(name="添加白名單")
+    @discord.user_command(name="添加成員")
+    async def add_member(self, ctx: ApplicationContext, member: Member) -> None:
+        await self.add_member_command(ctx, member)
+
+    @discord.slash_command(name="添加白名單")
     async def add_whitelist(self, ctx: ApplicationContext) -> None:
         if not await check_role(self.base_guild, ctx):
             return
 
         await ctx.response.send_modal(WhitelistModal(self.base_guild))
-
-    @discord.user_command(name="添加成員")
-    async def add_member(self, ctx: ApplicationContext, member: Member) -> None:
-        await self.add_member_command(ctx, member)
 
     @discord.slash_command(guild_only=True, name="添加成員")
     async def add_member_command(
