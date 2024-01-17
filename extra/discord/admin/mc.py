@@ -281,11 +281,7 @@ class MinecraftCog(BaseCog):
         super().__init__(bot)
         self.base_guild = self.bot.get_guild(BASE_GUILD_ID)
 
-    @discord.slash_command(
-        guild_only=True,
-        name="del_whitelist",
-        description="移除雲鎮白名單",
-    )
+    @discord.slash_command(guild_only=True, name="移除雲鎮白名單")
     @discord.option("mc_id", str)
     async def del_whitelist(
         self,
@@ -311,7 +307,7 @@ class MinecraftCog(BaseCog):
         else:
             await ctx.send(f"{mc_id} 不在白名單內")
 
-    @button(label="添加白名單", style=ButtonStyle.green, custom_id="add_whitelist")
+    @discord.user_command(name="添加白名單")
     async def add_whitelist(self, ctx: ApplicationContext) -> None:
         if not await check_role(self.base_guild, ctx):
             return
@@ -322,7 +318,7 @@ class MinecraftCog(BaseCog):
     async def add_member(self, ctx: ApplicationContext, member: Member) -> None:
         await self.add_member_command(ctx, member)
 
-    @discord.slash_command(name="添加成員")
+    @discord.slash_command(guild_only=True, name="添加成員")
     async def add_member_command(
         self,
         ctx: ApplicationContext,
