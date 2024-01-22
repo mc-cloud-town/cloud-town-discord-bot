@@ -17,8 +17,11 @@ from discord.ui import InputText, View, Modal, Select, Button, select, button
 
 from plugins.discord.client import BaseCog, Bot
 
-BC_PLUGIN_PATH = Path() / "../CT-BC"
-BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" / "BungeeWhitelist" / "config.yml"
+# BC_PLUGIN_PATH = Path() / "../CT-BC"
+# BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" /
+# "BungeeWhitelist" / "config.yml"
+VE_PLUGIN_PATH = Path() / "../CT-velocity"
+VE_WHITELIST_CONFIG_PATH = VE_PLUGIN_PATH / "plugins" / "velocityct" / "config.yml"
 
 
 WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
@@ -96,15 +99,15 @@ NAME_ROLES_ID_MAP = {
 
 def add_whitelist(mc_id: str) -> bool:
     """添加白名單"""
-    yaml_data = yaml.safe_load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
-    whitelisted: list[str] = yaml_data["whitelist"]["global"]["whitelisted"]
+    yaml_data = yaml.safe_load(VE_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
+    whitelisted: list[str] = yaml_data["whitelist"]["level1"]
 
     if mc_id not in set(whitelisted):
         whitelisted.append(mc_id)
 
         yaml.dump(
             yaml_data,
-            BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
+            VE_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
             allow_unicode=True,
         )
         return True
@@ -292,15 +295,15 @@ class MinecraftCog(BaseCog):
             return
 
         # 移除白名單
-        yaml_data = yaml.safe_load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
-        whitelisted: list[str] = yaml_data["whitelist"]["global"]["whitelisted"]
+        yaml_data = yaml.safe_load(VE_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
+        whitelisted: list[str] = yaml_data["whitelist"]["level1"]
 
         if mc_id in set(whitelisted):
             whitelisted.remove(mc_id)
 
             yaml.dump(
                 yaml_data,
-                BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
+                VE_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
                 allow_unicode=True,
             )
             await ctx.send(f"{mc_id} 以從白名單內移除")
