@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 
-import yaml
+import ruamel.yaml
 import discord
 from discord import (
     ApplicationContext,
@@ -22,6 +22,7 @@ from plugins.discord.client import BaseCog, Bot
 # "BungeeWhitelist" / "config.yml"
 VE_PLUGIN_PATH = Path() / "../CT-velocity"
 VE_WHITELIST_CONFIG_PATH = VE_PLUGIN_PATH / "plugins" / "velocityct" / "config.yml"
+yaml = ruamel.yaml.YAML()
 
 
 WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
@@ -99,17 +100,13 @@ NAME_ROLES_ID_MAP = {
 
 def add_whitelist(mc_id: str) -> bool:
     """添加白名單"""
-    yaml_data = yaml.safe_load(VE_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
+    yaml_data = yaml.load(VE_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
     whitelisted: list[str] = yaml_data["whitelist"]["level1"]
 
     if mc_id not in set(whitelisted):
         whitelisted.append(mc_id)
 
-        yaml.dump(
-            yaml_data,
-            VE_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
-            allow_unicode=True,
-        )
+        yaml.dump(yaml_data, VE_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"))
         return True
     return False
 
@@ -295,17 +292,13 @@ class MinecraftCog(BaseCog):
             return
 
         # 移除白名單
-        yaml_data = yaml.safe_load(VE_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
+        yaml_data = yaml.load(VE_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
         whitelisted: list[str] = yaml_data["whitelist"]["level1"]
 
         if mc_id in set(whitelisted):
             whitelisted.remove(mc_id)
 
-            yaml.dump(
-                yaml_data,
-                VE_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"),
-                allow_unicode=True,
-            )
+            yaml.dump(yaml_data, VE_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"))
             await ctx.send(f"{mc_id} 以從白名單內移除")
         else:
             await ctx.send(f"{mc_id} 不在白名單內")
