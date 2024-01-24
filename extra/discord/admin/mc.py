@@ -17,11 +17,10 @@ from discord.ui import InputText, View, Modal, Select, Button, select, button
 
 from plugins.discord.client import BaseCog, Bot
 
-# BC_PLUGIN_PATH = Path() / "../CT-BC"
-# BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" /
-# "BungeeWhitelist" / "config.yml"
-VE_PLUGIN_PATH = Path() / "../CT-velocity"
-VE_WHITELIST_CONFIG_PATH = VE_PLUGIN_PATH / "plugins" / "velocityct" / "config.yml"
+BC_PLUGIN_PATH = Path() / "../CT-BC"
+BC_WHITELIST_CONFIG_PATH = (
+    BC_PLUGIN_PATH / "plugins" / "BungeeCordWhitelistCT" / "config.yml"
+)
 yaml = ruamel.yaml.YAML()
 
 
@@ -100,13 +99,13 @@ NAME_ROLES_ID_MAP = {
 
 def add_whitelist(mc_id: str) -> bool:
     """添加白名單"""
-    yaml_data = yaml.load(VE_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
+    yaml_data = yaml.load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
     whitelisted: list[str] = yaml_data["whitelist"]["level1"]
 
     if mc_id not in set(whitelisted):
         whitelisted.append(mc_id)
 
-        yaml.dump(yaml_data, VE_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"))
+        yaml.dump(yaml_data, BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"))
         return True
     return False
 
@@ -292,16 +291,21 @@ class MinecraftCog(BaseCog):
             return
 
         # 移除白名單
-        yaml_data = yaml.load(VE_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
+        yaml_data = yaml.load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
         whitelisted: list[str] = yaml_data["whitelist"]["level1"]
 
         if mc_id in set(whitelisted):
             whitelisted.remove(mc_id)
 
-            yaml.dump(yaml_data, VE_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"))
+            yaml.dump(yaml_data, BC_WHITELIST_CONFIG_PATH.open("w", encoding="utf-8"))
             await ctx.send(f"{mc_id} 以從白名單內移除")
+            self.log.info(f"{ctx.author.name} del_whitelist -> {mc_id}")
         else:
             await ctx.send(f"{mc_id} 不在白名單內")
+            self.log.info(
+                f"{ctx.author.name} try del_whitelist but user not in whitelist"
+                f" -> {mc_id}"
+            )
 
     @discord.user_command(name="添加成員")
     async def add_member(self, ctx: ApplicationContext, member: Member) -> None:
