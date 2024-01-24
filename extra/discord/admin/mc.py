@@ -17,10 +17,12 @@ from discord.ui import InputText, View, Modal, Select, Button, select, button
 
 from plugins.discord.client import BaseCog, Bot
 
+# BC_PLUGIN_PATH = Path() / "../CT-BC"
+# BC_WHITELIST_CONFIG_PATH = (
+#     BC_PLUGIN_PATH / "plugins" / "BungeeCordWhitelistCT" / "config.yml"
+# )
 BC_PLUGIN_PATH = Path() / "../CT-BC"
-BC_WHITELIST_CONFIG_PATH = (
-    BC_PLUGIN_PATH / "plugins" / "BungeeCordWhitelistCT" / "config.yml"
-)
+BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" / "BungeeWhitelist" / "config.yml"
 yaml = ruamel.yaml.YAML()
 
 
