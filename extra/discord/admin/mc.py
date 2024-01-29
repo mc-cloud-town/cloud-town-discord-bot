@@ -17,12 +17,13 @@ from discord.ui import InputText, View, Modal, Select, Button, select, button
 
 from plugins.discord.client import BaseCog, Bot
 
-# BC_PLUGIN_PATH = Path() / "../CT-BC"
-# BC_WHITELIST_CONFIG_PATH = (
-#     BC_PLUGIN_PATH / "plugins" / "BungeeCordWhitelistCT" / "config.yml"
-# )
 BC_PLUGIN_PATH = Path() / "../CT-BC"
-BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" / "BungeeWhitelist" / "config.yml"
+BC_WHITELIST_CONFIG_PATH = (
+    BC_PLUGIN_PATH / "plugins" / "BungeeCordWhitelistCT" / "config.yml"
+)
+# BC_PLUGIN_PATH = Path() / "../CT-BC"
+# BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" / "BungeeWhitelist"
+#  / "config.yml"
 yaml = ruamel.yaml.YAML()
 
 
@@ -102,7 +103,7 @@ NAME_ROLES_ID_MAP = {
 def add_whitelist(mc_id: str) -> bool:
     """添加白名單"""
     yaml_data = yaml.load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
-    whitelisted: list[str] = yaml_data["whitelist"]["level1"]
+    whitelisted: list[str] = yaml_data["whitelist"]["member"]
 
     if mc_id not in set(whitelisted):
         whitelisted.append(mc_id)
@@ -294,7 +295,7 @@ class MinecraftCog(BaseCog):
 
         # 移除白名單
         yaml_data = yaml.load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
-        whitelisted: list[str] = yaml_data["whitelist"]["level1"]
+        whitelisted: list[str] = yaml_data["whitelist"]["member"]
 
         if mc_id in set(whitelisted):
             whitelisted.remove(mc_id)
