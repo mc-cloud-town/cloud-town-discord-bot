@@ -1,3 +1,5 @@
+from typing import Union
+
 import discord
 from discord import ApplicationContext, Embed, Member, Message
 
@@ -41,10 +43,10 @@ class ClearCog(BaseCog):
         self,
         ctx: ApplicationContext,
         count: int,
-        reason: str | None,
-        member: Member | None,
-        before: str | None,
-        after: str | None,
+        reason: Union[str, None],
+        member: Union[Member, None],
+        before: Union[str, None],
+        after: Union[str, None],
     ):
         reason = reason or "無原因"
         if before and after:

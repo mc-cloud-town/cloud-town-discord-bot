@@ -103,7 +103,7 @@ NAME_ROLES_ID_MAP = {
 def add_whitelist(mc_id: str) -> bool:
     """添加白名單"""
     yaml_data = yaml.load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
-    whitelisted: list[str] = yaml_data["whitelist"]["member"]
+    whitelisted: list[str] = yaml_data["whitelist"]["trial"]
 
     if mc_id not in set(whitelisted):
         whitelisted.append(mc_id)
@@ -295,7 +295,7 @@ class MinecraftCog(BaseCog):
 
         # 移除白名單
         yaml_data = yaml.load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
-        whitelisted: list[str] = yaml_data["whitelist"]["member"]
+        whitelisted: list[str] = yaml_data["whitelist"]["trial"]
 
         if mc_id in set(whitelisted):
             whitelisted.remove(mc_id)
