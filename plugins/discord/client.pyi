@@ -4,21 +4,25 @@ from asyncio import AbstractEventLoop
 from discord import ApplicationContext as ApplicationContext, DiscordException as DiscordException, Message as Message, Reaction as Reaction, TextChannel as TextChannel, User as User
 from discord.ext import commands
 from discord.ext.commands import CommandError as CommandError, Context as Context
+from logging import Logger
 from server import Plugin
+from server.core.server import BaseServer
 from server.utils import FormatMessage
+from server.utils.config import Config
 from typing import Optional
 
 class Bot(commands.Bot):
+    __version__: str
+    _uptime: Incomplete
     plugin: Incomplete
     log: Incomplete
     console: Incomplete
     config: Incomplete
     server: Incomplete
-    def __init__(self, plugin: Plugin, loop: AbstractEventLoop | None = ...) -> None: ...
+    def __init__(self, plugin: Plugin, loop: AbstractEventLoop | None = None) -> None: ...
     @property
     def chat_channel(self) -> int | None: ...
     async def get_or_fetch_channel(self, id: int) -> TextChannel | None: ...
-    _uptime: Incomplete
     async def on_ready(self) -> None: ...
     async def on_command(self, ctx: Context): ...
     async def on_application_command(self, ctx: ApplicationContext): ...
@@ -30,11 +34,11 @@ class Bot(commands.Bot):
     async def get_or_fetch_message(self, id: int, channel: TextChannel) -> Optional[Message]: ...
 
 class BaseCog(discord.Cog):
-    bot: Incomplete
-    log: Incomplete
-    plugin: Incomplete
-    config: Incomplete
-    server: Incomplete
+    bot: Bot
+    log: Logger
+    plugin: Plugin
+    config: Config
+    server: BaseServer
     def __init__(self, bot: Bot) -> None: ...
 
 class BotCommand(BaseCog):
