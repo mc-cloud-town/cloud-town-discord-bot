@@ -40,13 +40,12 @@ jobs:
           git add -A
           if [[ `git status --porcelain` ]]; then
             git commit -m "${{ github.event.head_commit.message }}"
-            git push -f https://_:"$token"@$repository "$ref_name":releaser
+            git push -f https://_:"$token"@$repository "$ref_name":"$ref_name"
           fi
         shell: bash
         env:
           repository: ${{ github.repository }}
-          ref_name: master
+          ref_name: releaser
           token: ${{ secrets.GITHUB_TOKEN }}
           user_name: GitHub Action
           user_email: action@github.com
-          cname: none
