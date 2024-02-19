@@ -141,7 +141,7 @@ async def check_role(base_guild: Guild, ctx: ApplicationContext) -> bool:
 class MinecraftCog(BaseCog):
     def __init__(self, bot: Bot) -> None:
         super().__init__(bot)
-        self.log.info(f"BC Plugins Path {BC_PLUGIN_PATH}")
+        self.log.info(f"BC Plugins Path {BC_PLUGIN_PATH.absolute()}")
         self.base_guild = self.bot.get_guild(BASE_GUILD_ID)
 
     @discord.slash_command(guild_only=True, name="移除雲鎮白名單")
