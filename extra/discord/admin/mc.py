@@ -118,7 +118,7 @@ def add_whitelist(mc_id: str, group_name: str = "trial") -> bool:
 
 async def get_whitelist_groups(ctx: discord.AutocompleteContext):
     yaml_data = read_whitelist_file()
-    return yaml_data["groups"].get(ctx.options["group"], [])
+    return yaml_data["groups"].keys()
 
 
 async def check_role(base_guild: Guild, ctx: ApplicationContext) -> bool:
