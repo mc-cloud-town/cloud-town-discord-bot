@@ -20,17 +20,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Git checkout for Github repository workspace
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Clone
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          path: __old_version
+          ref: releaser
 
       - name: releaser
         run: |
-          cd extra
-          git init
           git config --global user.name "$user_name"
           git config --global user.email "$user_email"
-          git add -f .
-          git commit -m "${{ github.event.head_commit.message }}"
-          git push -f https://_:"$token"@github.com/"$repository".git "$ref_name":releaser
+
+          mv extra/* __old_version
+          cd __old_version
+
+          git add -A
+          if [[ `git status --porcelain` ]]; then
+            git commit -m "${{ github.event.head_commit.message }}"
+            git push -f https://_:"$token"@$repository "$ref_name":releaser
+          fi
         shell: bash
         env:
           repository: ${{ github.repository }}
