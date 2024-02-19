@@ -42,6 +42,3 @@ class TimeCog(BaseCog):
 
 def setup(bot: "Bot"):
     bot.add_cog(TimeCog(bot))
-
-
-# test for new action
