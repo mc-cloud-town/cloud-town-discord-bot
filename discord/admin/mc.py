@@ -15,8 +15,8 @@ from discord.utils import basic_autocomplete
 
 from plugins.discord.client import BaseCog, Bot
 
-BC_PLUGIN_PATH = Path() / "../CT-BC"
-BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" / "BungeeCordWhitelistCT" / "config.yml"
+BC_PLUGIN_PATH = Path() / "../CT-BC" / "plugins"
+BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "BungeeCordWhitelistCT" / "config.yml"
 # BC_PLUGIN_PATH = Path() / "../CT-BC"
 # BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "plugins" / "BungeeWhitelist"
 #  / "config.yml"
@@ -141,6 +141,7 @@ async def check_role(base_guild: Guild, ctx: ApplicationContext) -> bool:
 class MinecraftCog(BaseCog):
     def __init__(self, bot: Bot) -> None:
         super().__init__(bot)
+        self.log.info(f"BC Plugins Path {BC_PLUGIN_PATH}")
         self.base_guild = self.bot.get_guild(BASE_GUILD_ID)
 
     @discord.slash_command(guild_only=True, name="移除雲鎮白名單")
@@ -177,7 +178,7 @@ class MinecraftCog(BaseCog):
             self.log.info(f"{ctx.author.name} try add_whitelist but user already in whitelist -> {mc_id}")
             await ctx.send(f"{mc_id} 已經於加入白名單內", ephemeral=True)
 
-    @discord.slash_command(name="添加一審成員")
+    @discord.user_command(name="添加一審成員")
     @discord.option("user", Member)
     async def add_first_role(self, ctx: ApplicationContext, user: Member) -> None:
         if not await check_role(self.base_guild, ctx):
