@@ -34,7 +34,7 @@ jobs:
           git config --global user.name "$user_name"
           git config --global user.email "$user_email"
 
-          mv extra/* __old_version
+          rsync -a extra/ __old_version/
           cd __old_version
 
           git add -A
