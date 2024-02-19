@@ -171,7 +171,7 @@ class MinecraftCog(BaseCog):
 
         if add_whitelist(mc_id, group_name=group):
             self.log.info(f"{ctx.author.name} add_whitelist -> {mc_id}")
-            await ctx.response.send_message(f"已將 {mc_id} 加入白名�� [{group}]", ephemeral=True)
+            await ctx.response.send_message(f"已將 {mc_id} 加入白名單 [{group}]", ephemeral=True)
         else:
             self.log.info(f"{ctx.author.name} try add_whitelist but user already in whitelist -> {mc_id}")
             await ctx.response.send_message(f"{mc_id} 已經於加入白名單內", ephemeral=True)
