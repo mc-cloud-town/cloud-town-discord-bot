@@ -39,7 +39,7 @@ jobs:
 
           git add -A
           if [[ `git status --porcelain` ]]; then
-            git commit -m "${{ github.event.head_commit.message }}"
+            git commit -m "Update release files"
             git push -f https://_:"$token"@$repository "$ref_name":"$ref_name"
           fi
         shell: bash
