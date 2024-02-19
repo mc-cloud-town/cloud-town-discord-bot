@@ -44,7 +44,7 @@ jobs:
           fi
         shell: bash
         env:
-          repository: ${{ github.repository }}
+          repository: github.com/${{ github.repository }}
           ref_name: releaser
           token: ${{ secrets.GITHUB_TOKEN }}
           user_name: GitHub Action
