@@ -13,9 +13,7 @@ class TimeCog(BaseCog):
     async def time(self, ctx: Context):
         embed = Embed(color=Color.random(), timestamp=datetime.now())
 
-        now = lambda x: datetime.now(tz=timezone(timedelta(hours=x))).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
+        now = lambda x: datetime.now(tz=timezone(timedelta(hours=x))).strftime("%Y-%m-%d %H:%M:%S")
         embed.add_field(
             name="UTC+8 (台灣/中國/香港/澳洲西部)",
             value=now(8),
@@ -44,3 +42,6 @@ class TimeCog(BaseCog):
 
 def setup(bot: "Bot"):
     bot.add_cog(TimeCog(bot))
+
+
+# test for new action
