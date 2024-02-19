@@ -121,18 +121,14 @@ async def get_whitelist_groups(ctx: discord.AutocompleteContext):
     return yaml_data["groups"].keys()
 
 
-async def check_role(base_guild: Guild, ctx: ApplicationContext) -> bool:
+async def check_role(base_guild: Guild, ctx: ApplicationContext, root_admin: bool = False) -> bool:
+    # 1043786472207167558 =>> 審核身分組 ID
+    roles = {1043786472207167558}
+    if root_admin:
+        #  933383039604637766 =>> admin 身分組 ID
+        roles.add(933383039604637766)
     if member := await base_guild.fetch_member(ctx.author.id):
-        roles = filter(
-            # 1043786472207167558 =>> 審核身分組 ID
-            #  933383039604637766 =>> admin 身分組 ID
-            # (1043786472207167558, 933383039604637766)
-            # For-test
-            # (1196795438477623427, 1196795390914203690)
-            lambda x: x.id in (1043786472207167558, 933383039604637766),
-            member.roles,
-        )
-        if list(roles):
+        if list(filter(lambda x: x.id in roles, member.roles)):
             return True
     await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
     return False
@@ -168,7 +164,9 @@ class MinecraftCog(BaseCog):
     @discord.option("mc_id", str, required=True)
     @discord.option("group", str, default="trial", autocomplete=basic_autocomplete(get_whitelist_groups))
     async def add_whitelist(self, ctx: ApplicationContext, mc_id: str, group: str) -> None:
-        if not await check_role(self.base_guild, ctx):
+        # 檢查權限，如果 trial 則可由審核人員執行
+        # 若為非 trial 則需為管理人員
+        if not await check_role(self.base_guild, ctx, root_admin=group != "trial"):
             return
 
         if add_whitelist(mc_id, group_name=group):
@@ -204,13 +202,18 @@ class MinecraftCog(BaseCog):
         if FIRST_INSTANCE_ROLE_ID in role_ids:
             await user.remove_roles(self.base_guild.get_role(FIRST_INSTANCE_ROLE_ID))
 
-        # Add 二審成員 role
         if SECOND_INSTANCE_ROLE_ID in role_ids:
             self.log.info(f"{ctx.author.name} add_second_role[添加無效] -> {user.name}")
             await ctx.response.send_message(f"{user.name} 已經是二審成員", ephemeral=True)
         else:
             self.log.info(f"{ctx.author.name} add_second_role -> {user.name}")
+
+            # Add SMP & 二審成員 role
+            await user.add_roles(self.base_guild.get_role(SMP_ROLE_ID))
             await user.add_roles(self.base_guild.get_role(SECOND_INSTANCE_ROLE_ID))
+
+            # 發送加入訊息
+            await self.send_join_message(user)
             await ctx.response.send_message(f"已將 {user.name} 加入二審成員", ephemeral=True)
 
     async def send_join_message(self, member: Member):
