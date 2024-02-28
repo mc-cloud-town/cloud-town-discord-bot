@@ -208,8 +208,7 @@ class MinecraftCog(BaseCog):
         else:
             self.log.info(f"{ctx.author.name} add_second_role -> {user.name}")
 
-            # Add SMP & 二審成員 role
-            await user.add_roles(self.base_guild.get_role(SMP_ROLE_ID))
+            # Add 二審成員 role
             await user.add_roles(self.base_guild.get_role(SECOND_INSTANCE_ROLE_ID))
 
             # 發送加入訊息
