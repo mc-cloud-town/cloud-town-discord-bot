@@ -1,15 +1,13 @@
 import random
 import re
 
-from discord import Message
 import discord
+from discord import Message
 
 from plugins.discord.client import BaseCog, Bot
 
-
 IP_MESSAGE = [
     "https://media.discordapp.net/stickers/1172167390990188596.webp?size=240",
-    "https://media.discordapp.net/attachments/1025379525535748160/1052222785734328320/-1.png",  # noqa
     "你猜阿 .w.",
     "172.16.20.1:25560",
     "10.16.19.2:25565",
