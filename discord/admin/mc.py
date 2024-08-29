@@ -139,13 +139,19 @@ class MinecraftCog(BaseCog):
 
     @discord.slash_command(guild_only=True, name="移除雲鎮白名單")
     @discord.option("mc_id", str)
-    async def del_whitelist(self, ctx: ApplicationContext, mc_id: str):
+    @discord.option(
+        "group",
+        str,
+        default="trial",
+        autocomplete=basic_autocomplete(get_whitelist_groups),
+    )
+    async def del_whitelist(self, ctx: ApplicationContext, mc_id: str, group: str):
         if not await check_role(self.base_guild, ctx):
             return
 
         # 移除白名單
         yaml_data = yaml.load(BC_WHITELIST_CONFIG_PATH.read_text(encoding="utf-8"))
-        whitelisted: list[str] = yaml_data["whitelist"]["trial"]
+        whitelisted: list[str] = yaml_data["whitelist"][group]
 
         if mc_id in set(whitelisted):
             whitelisted.remove(mc_id)
