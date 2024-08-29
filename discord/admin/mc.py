@@ -2,14 +2,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TypedDict
 
-import ruamel.yaml
 import discord
-from discord import (
-    ApplicationContext,
-    Guild,
-    Member,
-    Embed,
-)
+import ruamel.yaml
+from discord import ApplicationContext, Embed, Guild, Member
 from discord.embeds import EmptyEmbed
 from discord.utils import basic_autocomplete
 
@@ -34,7 +29,7 @@ WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
 - 伺服器有一些自訂合成，請至 <#1112752011557994617> 查看
 - 伺服器種子碼: `-8180004378910677489`
 - 伺服器版本: `1.17.1`
-- 跨版本支持: `1.12.2~1.20.x` 皆可加入
+- 跨版本支持: `1.12.2~1.20.1` 皆可加入
 
 ## :warning: 成員守則
 
@@ -121,7 +116,9 @@ async def get_whitelist_groups(ctx: discord.AutocompleteContext):
     return yaml_data["groups"].keys()
 
 
-async def check_role(base_guild: Guild, ctx: ApplicationContext, root_admin: bool = False) -> bool:
+async def check_role(
+    base_guild: Guild, ctx: ApplicationContext, root_admin: bool = False
+) -> bool:
     # 1043786472207167558 =>> 審核身分組 ID
     roles = {1043786472207167558}
     if root_admin:
@@ -143,7 +140,7 @@ class MinecraftCog(BaseCog):
     @discord.slash_command(guild_only=True, name="移除雲鎮白名單")
     @discord.option("mc_id", str)
     async def del_whitelist(self, ctx: ApplicationContext, mc_id: str):
-        if not await check_role(ctx):
+        if not await check_role(self.base_guild, ctx):
             return
 
         # 移除白名單
@@ -157,13 +154,23 @@ class MinecraftCog(BaseCog):
             self.log.info(f"{ctx.author.name} del_whitelist -> {mc_id}")
             await ctx.response.send_message(f"{mc_id} 以從白名單內移除", ephemeral=True)
         else:
-            self.log.info(f"{ctx.author.name} try del_whitelist but user not in whitelist" f" -> {mc_id}")
+            self.log.info(
+                f"{ctx.author.name} try del_whitelist but user not in whitelist"
+                f" -> {mc_id}"
+            )
             await ctx.response.send_message(f"{mc_id} 不在白名單內", ephemeral=True)
 
     @discord.slash_command(name="添加白名單")
     @discord.option("mc_id", str, required=True)
-    @discord.option("group", str, default="trial", autocomplete=basic_autocomplete(get_whitelist_groups))
-    async def add_whitelist(self, ctx: ApplicationContext, mc_id: str, group: str) -> None:
+    @discord.option(
+        "group",
+        str,
+        default="trial",
+        autocomplete=basic_autocomplete(get_whitelist_groups),
+    )
+    async def add_whitelist(
+        self, ctx: ApplicationContext, mc_id: str, group: str
+    ) -> None:
         # 檢查權限，如果 trial 則可由審核人員執行
         # 若為非 trial 則需為管理人員
         if not await check_role(self.base_guild, ctx, root_admin=group != "trial"):
@@ -171,10 +178,16 @@ class MinecraftCog(BaseCog):
 
         if add_whitelist(mc_id, group_name=group):
             self.log.info(f"{ctx.author.name} add_whitelist -> {mc_id}")
-            await ctx.response.send_message(f"已將 {mc_id} 加入白名單 [{group}]", ephemeral=True)
+            await ctx.response.send_message(
+                f"已將 {mc_id} 加入白名單 [{group}]", ephemeral=True
+            )
         else:
-            self.log.info(f"{ctx.author.name} try add_whitelist but user already in whitelist -> {mc_id}")
-            await ctx.response.send_message(f"{mc_id} 已經於加入白名單內", ephemeral=True)
+            self.log.info(
+                f"{ctx.author.name} try add_whitelist but user already in whitelist -> {mc_id}"
+            )
+            await ctx.response.send_message(
+                f"{mc_id} 已經於加入白名單內", ephemeral=True
+            )
 
     @discord.user_command(name="添加一審成員")
     @discord.option("user", Member)
@@ -184,11 +197,15 @@ class MinecraftCog(BaseCog):
 
         if FIRST_INSTANCE_ROLE_ID in map(lambda x: x.id, user.roles):
             self.log.info(f"{ctx.author.name} add_first_role[添加無效] -> {user.name}")
-            await ctx.response.send_message(f"{user.name} 已經是一審成員", ephemeral=True)
+            await ctx.response.send_message(
+                f"{user.name} 已經是一審成員", ephemeral=True
+            )
         else:
             self.log.info(f"{ctx.author.name} add_first_role -> {user.name}")
             await user.add_roles(self.base_guild.get_role(FIRST_INSTANCE_ROLE_ID))
-            await ctx.response.send_message(f"已將 {user.name} 加入一審成員", ephemeral=True)
+            await ctx.response.send_message(
+                f"已將 {user.name} 加入一審成員", ephemeral=True
+            )
 
     @discord.user_command(name="添加二審成員")
     @discord.option("user", Member)
@@ -204,7 +221,9 @@ class MinecraftCog(BaseCog):
 
         if SECOND_INSTANCE_ROLE_ID in role_ids:
             self.log.info(f"{ctx.author.name} add_second_role[添加無效] -> {user.name}")
-            await ctx.response.send_message(f"{user.name} 已經是二審成員", ephemeral=True)
+            await ctx.response.send_message(
+                f"{user.name} 已經是二審成員", ephemeral=True
+            )
         else:
             self.log.info(f"{ctx.author.name} add_second_role -> {user.name}")
 
@@ -213,7 +232,9 @@ class MinecraftCog(BaseCog):
 
             # 發送加入訊息
             await self.send_join_message(user)
-            await ctx.response.send_message(f"已將 {user.name} 加入二審成員", ephemeral=True)
+            await ctx.response.send_message(
+                f"已將 {user.name} 加入二審成員", ephemeral=True
+            )
 
     async def send_join_message(self, member: Member):
         embed = Embed(
