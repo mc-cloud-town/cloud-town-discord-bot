@@ -1,15 +1,25 @@
+import asyncio
+import json
+import os
+import re
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, Dict, Literal, Optional, TypedDict, Union, overload
 
 import discord
+import requests
 import ruamel.yaml
-from discord import ApplicationContext, Embed, Guild, Member
+from discord import ApplicationContext, Embed, Guild, InteractionResponse, Member
 from discord.embeds import EmptyEmbed
 from discord.utils import basic_autocomplete
 
 from plugins.discord.client import BaseCog, Bot
 
+PANEL_API_URL = os.getenv("PANEL_API_URL")
+PANEL_ADMIN_TOKEN = os.getenv("PANEL_ADMIN_TOKEN")
+
+INSTANCE_CONFIG_PATH = Path("instance_config.json")
 BC_PLUGIN_PATH = Path() / "../CT-BC" / "plugins"
 BC_WHITELIST_CONFIG_PATH = BC_PLUGIN_PATH / "BungeeCordWhitelistCT" / "config.yml"
 # BC_PLUGIN_PATH = Path() / "../CT-BC"
@@ -87,11 +97,133 @@ NAME_ROLES_ID_MAP = {
     "second_instance": SECOND_INSTANCE_ROLE_ID,
 }
 
+ANSI_ESCAPE = re.compile(r"(\x08|\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))")
+MINECRAFT_LIST_PATTERN = re.compile(
+    r"(?:^[.*] [\d+:\d+:\d+] )?\[Server.*?/INFO\]: There are (\d+) of a max of (\d+) players online(?:: \[(.*?)\])?"
+)
+
 
 class WhitelistData(TypedDict):
     groups: dict[str, list[str]]
     whitelist: dict[str, list[str]]
     specialWhitelist: dict[str, list[str]]
+
+
+@dataclass
+class ServerInfo:
+    online_count: int
+    max_count: int
+    players: list[str]
+
+
+@dataclass
+class InstanceInfo:
+    uuid: str
+    daemonId: str
+
+
+def call_api(method: Literal["GET", "POST"], endpoint: str, **kwargs) -> Optional[Any]:
+    headers = kwargs.pop("headers", {})
+    return (
+        requests.request(
+            method,
+            f"{PANEL_API_URL}{endpoint}",
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "X-Requested-With": "XMLHttpRequest",
+                **headers,
+            },
+            **kwargs,
+            timeout=10,
+        )
+        .json()
+        .get("data", None)
+    )
+
+
+def parse_online_players(log_output: str) -> Optional[ServerInfo]:
+    log_output = ANSI_ESCAPE.sub("", log_output).strip()
+    lines = log_output.splitlines()
+
+    for line in lines:
+        if match := MINECRAFT_LIST_PATTERN.search(line):
+            online_count = int(match.group(1))
+            max_count = int(match.group(2))
+            player_str = match.group(3)
+            players = [p.strip() for p in re.split(r"[,\s]+", player_str) if p] if player_str else []
+
+            return ServerInfo(online_count=online_count, max_count=max_count, players=players)
+
+    return None
+
+
+def get_instance_status(uuid: str, daemonId: str) -> Optional[int]:
+    """
+    -1: 忙碌
+     0: 關閉
+     1: 關閉中
+     2: 啟動中
+     3: 運行中
+    """
+    params = {"apikey": PANEL_ADMIN_TOKEN, "uuid": uuid, "daemonId": daemonId}
+
+    if (status_out := call_api("GET", "/api/instance", params=params)) is None:
+        return None
+
+    return status_out.get("status", None)
+
+
+def check_server_alive(uuid: str, daemonId: str) -> tuple[bool, Optional[ServerInfo]]:
+    params = {"apikey": PANEL_ADMIN_TOKEN, "uuid": uuid, "daemonId": daemonId}
+
+    if (status := get_instance_status(uuid, daemonId)) is None or status != 3:
+        return False, None
+
+    if not call_api("POST", "/api/protected_instance/command", params={**params, "command": "list"}):
+        return False, None
+
+    log_output = call_api("GET", "/api/protected_instance/outputlog", params={**params, "size": 400})
+    if not log_output:
+        return False, None
+
+    info = parse_online_players(log_output)
+    if not info:
+        return False, None
+
+    return True, info
+
+
+@overload
+def read_instance_config(name: None = ...) -> Dict[str, InstanceInfo]: ...
+@overload
+def read_instance_config(name: str = ...) -> Optional[InstanceInfo]: ...
+
+
+def read_instance_config(
+    name: Optional[str] = None,
+) -> Union[Optional[InstanceInfo], Dict[str, InstanceInfo]]:
+    try:
+        if instance := json.loads(INSTANCE_CONFIG_PATH.read_text(encoding="utf-8")):
+            if name is not None:
+                return InstanceInfo(uuid=instance[name]["uuid"], daemonId=instance[name]["daemonId"])
+
+            return {
+                k: InstanceInfo(uuid=v["uuid"], daemonId=v["daemonId"])
+                for k, v in instance.items()
+                if isinstance(v, dict) and "uuid" in v and "daemonId" in v
+            }
+    except Exception:
+        pass
+
+    return None if name is not None else {}
+
+
+async def get_server_alive_from_name(name: str) -> tuple[bool, Optional[ServerInfo]]:
+    info = read_instance_config(name)
+    if not info:
+        return False, None
+
+    return await check_server_alive(info.uuid, info.daemonId)
 
 
 def read_whitelist_file() -> WhitelistData:
@@ -111,14 +243,16 @@ def add_whitelist(mc_id: str, group_name: str = "trial") -> bool:
     return False
 
 
-async def get_whitelist_groups(ctx: discord.AutocompleteContext):
+async def get_whitelist_groups(_ctx: discord.AutocompleteContext):
     yaml_data = read_whitelist_file()
     return yaml_data["groups"].keys()
 
 
-async def check_role(
-    base_guild: Guild, ctx: ApplicationContext, root_admin: bool = False
-) -> bool:
+async def get_instance_ids(_ctx: discord.AutocompleteContext):
+    return read_instance_config().keys()
+
+
+async def check_role(base_guild: Guild, ctx: ApplicationContext, root_admin: bool = False) -> bool:
     # 1043786472207167558 =>> 審核身分組 ID
     roles = {1043786472207167558}
     if root_admin:
@@ -160,11 +294,68 @@ class MinecraftCog(BaseCog):
             self.log.info(f"{ctx.author.name} del_whitelist -> {mc_id}")
             await ctx.response.send_message(f"{mc_id} 以從白名單內移除", ephemeral=True)
         else:
-            self.log.info(
-                f"{ctx.author.name} try del_whitelist but user not in whitelist"
-                f" -> {mc_id}"
-            )
+            self.log.info(f"{ctx.author.name} try del_whitelist but user not in whitelist" f" -> {mc_id}")
             await ctx.response.send_message(f"{mc_id} 不在白名單內", ephemeral=True)
+
+    @discord.slash_command(guild_only=True, name="伺服器當機重啟")
+    @discord.option(
+        "instance_name",
+        str,
+        autocomplete=basic_autocomplete(get_instance_ids),
+    )
+    async def dead_reboot(self, ctx: ApplicationContext, instance_name: str):
+        #  933383039604637766 =>> admin 身分組 ID
+        # 1394279066189697065 =>> 狀態檢查、重啟 身分組 ID
+        roles = {933383039604637766, 1394279066189697065}
+        if member := await self.base_guild.fetch_member(ctx.author.id):
+            if not list(filter(lambda x: x.id in roles, member.roles)):
+                await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
+                return
+
+        response: InteractionResponse = ctx.response
+        await response.send_message(f"正在確認 {instance_name} 服務器狀態", ephemeral=True)
+
+        config = read_instance_config(instance_name)
+        if not config:
+            self.log.info(f"{ctx.author.name} dead_reboot[找不到服務器] -> {instance_name}")
+            await response.edit_message(f"找不到服務器 {instance_name}", ephemeral=True)
+            return
+
+        alive, _ = check_server_alive(config.uuid, config.daemonId)
+        if not alive:
+            self.log.info(f"{ctx.author.name} dead_reboot -> {instance_name}")
+            await response.edit_message(f"服務器 {instance_name} 當機中，正在重啟", ephemeral=True)
+
+            params = {"apikey": PANEL_ADMIN_TOKEN, "uuid": config.uuid, "daemonId": config.daemonId}
+            call_api("GET", "/api/protected_instance/kill", params=params)
+            for _ in range(10):
+                await asyncio.sleep(1)
+                alive, _ = get_instance_status(config.uuid, config.daemonId)
+                if alive == 0:
+                    break
+            else:
+                self.log.info(f"{ctx.author.name} dead_reboot[重啟失敗] -> {instance_name}")
+                await response.edit_message(f"服務器 {instance_name} 重啟失敗", ephemeral=True)
+                return
+
+            call_api("GET", "/api/protected_instance/open", params=params)
+            await response.edit_message(f"服務器 {instance_name} 啟動中", ephemeral=True)
+
+            for _ in range(10):
+                await asyncio.sleep(1)
+                alive, _ = get_instance_status(config.uuid, config.daemonId)
+                if alive == 1:
+                    break
+            else:
+                self.log.info(f"{ctx.author.name} dead_reboot[重啟失敗] -> {instance_name}")
+                await response.edit_message(f"服務器 {instance_name} 重啟失敗", ephemeral=True)
+                return
+
+            self.log.info(f"{ctx.author.name} dead_reboot[重啟成功] -> {instance_name}")
+            await response.edit_message(f"服務器 {instance_name} 重啟成功", ephemeral=True)
+            return
+
+        await response.edit_message(f"服務器 {instance_name} 正常運行中，無需重啟", ephemeral=True)
 
     @discord.slash_command(name="添加白名單")
     @discord.option("mc_id", str, required=True)
@@ -174,9 +365,7 @@ class MinecraftCog(BaseCog):
         default="trial",
         autocomplete=basic_autocomplete(get_whitelist_groups),
     )
-    async def add_whitelist(
-        self, ctx: ApplicationContext, mc_id: str, group: str
-    ) -> None:
+    async def add_whitelist(self, ctx: ApplicationContext, mc_id: str, group: str) -> None:
         # 檢查權限，如果 trial 則可由審核人員執行
         # 若為非 trial 則需為管理人員
         if not await check_role(self.base_guild, ctx, root_admin=group != "trial"):
@@ -184,16 +373,10 @@ class MinecraftCog(BaseCog):
 
         if add_whitelist(mc_id, group_name=group):
             self.log.info(f"{ctx.author.name} add_whitelist -> {mc_id}")
-            await ctx.response.send_message(
-                f"已將 {mc_id} 加入白名單 [{group}]", ephemeral=True
-            )
+            await ctx.response.send_message(f"已將 {mc_id} 加入白名單 [{group}]", ephemeral=True)
         else:
-            self.log.info(
-                f"{ctx.author.name} try add_whitelist but user already in whitelist -> {mc_id}"
-            )
-            await ctx.response.send_message(
-                f"{mc_id} 已經於加入白名單內", ephemeral=True
-            )
+            self.log.info(f"{ctx.author.name} try add_whitelist but user already in whitelist -> {mc_id}")
+            await ctx.response.send_message(f"{mc_id} 已經於加入白名單內", ephemeral=True)
 
     @discord.user_command(name="添加一審成員")
     @discord.option("user", Member)
@@ -203,15 +386,11 @@ class MinecraftCog(BaseCog):
 
         if FIRST_INSTANCE_ROLE_ID in map(lambda x: x.id, user.roles):
             self.log.info(f"{ctx.author.name} add_first_role[添加無效] -> {user.name}")
-            await ctx.response.send_message(
-                f"{user.name} 已經是一審成員", ephemeral=True
-            )
+            await ctx.response.send_message(f"{user.name} 已經是一審成員", ephemeral=True)
         else:
             self.log.info(f"{ctx.author.name} add_first_role -> {user.name}")
             await user.add_roles(self.base_guild.get_role(FIRST_INSTANCE_ROLE_ID))
-            await ctx.response.send_message(
-                f"已將 {user.name} 加入一審成員", ephemeral=True
-            )
+            await ctx.response.send_message(f"已將 {user.name} 加入一審成員", ephemeral=True)
 
     @discord.user_command(name="添加二審成員")
     @discord.option("user", Member)
@@ -227,9 +406,7 @@ class MinecraftCog(BaseCog):
 
         if SECOND_INSTANCE_ROLE_ID in role_ids:
             self.log.info(f"{ctx.author.name} add_second_role[添加無效] -> {user.name}")
-            await ctx.response.send_message(
-                f"{user.name} 已經是二審成員", ephemeral=True
-            )
+            await ctx.response.send_message(f"{user.name} 已經是二審成員", ephemeral=True)
         else:
             self.log.info(f"{ctx.author.name} add_second_role -> {user.name}")
 
@@ -238,9 +415,7 @@ class MinecraftCog(BaseCog):
 
             # 發送加入訊息
             await self.send_join_message(user)
-            await ctx.response.send_message(
-                f"已將 {user.name} 加入二審成員", ephemeral=True
-            )
+            await ctx.response.send_message(f"已將 {user.name} 加入二審成員", ephemeral=True)
 
     async def send_join_message(self, member: Member):
         embed = Embed(
