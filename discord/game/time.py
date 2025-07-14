@@ -1,5 +1,4 @@
-from datetime import datetime
-from datetime import timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from discord import Color, Embed
 from discord.ext import commands
