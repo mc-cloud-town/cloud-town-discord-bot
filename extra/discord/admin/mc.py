@@ -312,10 +312,10 @@ class MinecraftCog(BaseCog):
         roles = {SMP_ROLE_ID, CMP_ROLE_ID, ARCHITECT_ROLE_ID, SECOND_INSTANCE_ROLE_ID}
         if member := await self.base_guild.fetch_member(ctx.author.id):
             if not list(filter(lambda x: x.id in roles, member.roles)):
-                await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
+                await ctx.respond("你並非相關人員，無法使用此指令，若覺得有誤，請聯繫管理員", ephemeral=True)
                 return
 
-        await ctx.send_response(f"正在確認 {instance_name} 服務器狀態", ephemeral=True)
+        await ctx.send_response(f"正在確認 {instance_name} 服務器狀態")
 
         config = read_instance_config(instance_name)
         if not config:
@@ -329,7 +329,7 @@ class MinecraftCog(BaseCog):
             await ctx.edit(content=f"服務器 {instance_name} 當機中，正在重啟")
 
             params = {"apikey": PANEL_ADMIN_TOKEN, "uuid": config.uuid, "daemonId": config.daemonId}
-            print(call_api("GET", "/api/protected_instance/kill", params=params))
+            call_api("GET", "/api/protected_instance/kill", params=params)
             for _ in range(10):
                 alive = get_instance_status(config.uuid, config.daemonId)
                 if alive == 0:
@@ -340,7 +340,7 @@ class MinecraftCog(BaseCog):
                 await ctx.edit(content=f"服務器 {instance_name} 重啟失敗")
                 return
 
-            print(call_api("GET", "/api/protected_instance/open", params=params))
+            call_api("GET", "/api/protected_instance/open", params=params)
             await ctx.edit(content=f"服務器 {instance_name} 啟動中")
 
             for _ in range(10):
