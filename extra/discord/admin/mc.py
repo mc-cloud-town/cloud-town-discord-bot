@@ -3,14 +3,14 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, TypedDict, Union, overload
 
 import discord
 import requests
 import ruamel.yaml
-from discord import ApplicationContext, Embed, Guild, InteractionResponse, Member
+from discord import ApplicationContext, Embed, Guild, Member
 from discord.embeds import EmptyEmbed
 from discord.utils import basic_autocomplete
 
@@ -78,6 +78,7 @@ WARN_MESSAGE = """# 不廢話伺服器準則，請詳細察看
 
 
 BASE_GUILD_ID = 933290709589577728  # 伺服器 ID
+
 SMP_ROLE_ID = 1138650736872399008  # 生存服玩家/後勤
 CMP_ROLE_ID = 1003649146244313189  # 創造服開發者
 ARCHITECT_ROLE_ID = 1003649146244313189  # 建築組
@@ -99,7 +100,8 @@ NAME_ROLES_ID_MAP = {
 
 ANSI_ESCAPE = re.compile(r"(\x08|\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))")
 MINECRAFT_LIST_PATTERN = re.compile(
-    r"(?:^[.*] [\d+:\d+:\d+] )?\[Server.*?/INFO\]: There are (\d+) of a max of (\d+) players online(?:: \[(.*?)\])?"
+    r"^\[Server\] \[(\d{2}:\d{2}:\d{2})(?: [^\]]*)?\](?: \[[^\]]*/INFO\])?: "
+    r"(?:There are (\d+) of a max of (\d+) players online|Players online (\d+)/(\d+))(?:\: \[(.*?)\])?"
 )
 
 
@@ -141,18 +143,19 @@ def call_api(method: Literal["GET", "POST"], endpoint: str, **kwargs) -> Optiona
     )
 
 
-def parse_online_players(log_output: str) -> Optional[ServerInfo]:
-    log_output = ANSI_ESCAPE.sub("", log_output).strip()
+def parse_online_players(log_output: str) -> Optional[tuple[ServerInfo, datetime]]:
+    log_output = ANSI_ESCAPE.sub("", log_output)
     lines = log_output.splitlines()
 
     for line in lines:
-        if match := MINECRAFT_LIST_PATTERN.search(line):
-            online_count = int(match.group(1))
-            max_count = int(match.group(2))
-            player_str = match.group(3)
+        if match := MINECRAFT_LIST_PATTERN.match(line.strip().removeprefix(">").strip()):
+            log_time = datetime.strptime(match.group(1), "%H:%M:%S")
+            online_count = int(match.group(2) or match.group(4))
+            max_count = int(match.group(3) or match.group(5))
+            player_str = match.group(6)
             players = [p.strip() for p in re.split(r"[,\s]+", player_str) if p] if player_str else []
 
-            return ServerInfo(online_count=online_count, max_count=max_count, players=players)
+            return ServerInfo(online_count=online_count, max_count=max_count, players=players), log_time
 
     return None
 
@@ -167,30 +170,40 @@ def get_instance_status(uuid: str, daemonId: str) -> Optional[int]:
     """
     params = {"apikey": PANEL_ADMIN_TOKEN, "uuid": uuid, "daemonId": daemonId}
 
-    if (status_out := call_api("GET", "/api/instance", params=params)) is None:
+    status_out = call_api("GET", "/api/instance", params=params)
+    if status_out is None:
         return None
 
     return status_out.get("status", None)
 
 
-def check_server_alive(uuid: str, daemonId: str) -> tuple[bool, Optional[ServerInfo]]:
+async def check_server_alive(uuid: str, daemonId: str) -> tuple[bool, Optional[ServerInfo]]:
     params = {"apikey": PANEL_ADMIN_TOKEN, "uuid": uuid, "daemonId": daemonId}
 
     if (status := get_instance_status(uuid, daemonId)) is None or status != 3:
         return False, None
 
+    old_log_output = call_api("GET", "/api/protected_instance/outputlog", params={**params, "size": 800})
+    old_result = parse_online_players(old_log_output)
+    start_time = datetime.now()
     if not call_api("POST", "/api/protected_instance/command", params={**params, "command": "list"}):
+        print("Failed to send command")
         return False, None
 
-    log_output = call_api("GET", "/api/protected_instance/outputlog", params={**params, "size": 400})
-    if not log_output:
-        return False, None
+    if datetime.now() - start_time < timedelta(seconds=1):
+        await asyncio.sleep(1)
 
-    info = parse_online_players(log_output)
-    if not info:
-        return False, None
+    for _ in range(5):
+        log_output = call_api("GET", "/api/protected_instance/outputlog", params={**params, "size": 800})
+        result = parse_online_players(log_output)
+        if result:
+            info, log_time = result
+            if not old_result or info != old_result[0] or log_time - old_result[1] > timedelta(seconds=1):
+                return True, info
+        await asyncio.sleep(1)
 
-    return True, info
+    print("Failed to parse server info after 5 attempts")
+    return False, None
 
 
 @overload
@@ -216,14 +229,6 @@ def read_instance_config(
         pass
 
     return None if name is not None else {}
-
-
-async def get_server_alive_from_name(name: str) -> tuple[bool, Optional[ServerInfo]]:
-    info = read_instance_config(name)
-    if not info:
-        return False, None
-
-    return await check_server_alive(info.uuid, info.daemonId)
 
 
 def read_whitelist_file() -> WhitelistData:
@@ -304,58 +309,55 @@ class MinecraftCog(BaseCog):
         autocomplete=basic_autocomplete(get_instance_ids),
     )
     async def dead_reboot(self, ctx: ApplicationContext, instance_name: str):
-        #  933383039604637766 =>> admin 身分組 ID
-        # 1394279066189697065 =>> 狀態檢查、重啟 身分組 ID
-        roles = {933383039604637766, 1394279066189697065}
+        roles = {SMP_ROLE_ID, CMP_ROLE_ID, ARCHITECT_ROLE_ID, SECOND_INSTANCE_ROLE_ID}
         if member := await self.base_guild.fetch_member(ctx.author.id):
             if not list(filter(lambda x: x.id in roles, member.roles)):
                 await ctx.respond("你並非管理人員，無法使用此指令", ephemeral=True)
                 return
 
-        response: InteractionResponse = ctx.response
-        await response.send_message(f"正在確認 {instance_name} 服務器狀態", ephemeral=True)
+        await ctx.send_response(f"正在確認 {instance_name} 服務器狀態", ephemeral=True)
 
         config = read_instance_config(instance_name)
         if not config:
             self.log.info(f"{ctx.author.name} dead_reboot[找不到服務器] -> {instance_name}")
-            await response.edit_message(f"找不到服務器 {instance_name}", ephemeral=True)
+            await ctx.edit(content=f"找不到服務器 {instance_name}")
             return
 
-        alive, _ = check_server_alive(config.uuid, config.daemonId)
+        alive, _ = await check_server_alive(config.uuid, config.daemonId)
         if not alive:
             self.log.info(f"{ctx.author.name} dead_reboot -> {instance_name}")
-            await response.edit_message(f"服務器 {instance_name} 當機中，正在重啟", ephemeral=True)
+            await ctx.edit(content=f"服務器 {instance_name} 當機中，正在重啟")
 
             params = {"apikey": PANEL_ADMIN_TOKEN, "uuid": config.uuid, "daemonId": config.daemonId}
-            call_api("GET", "/api/protected_instance/kill", params=params)
+            print(call_api("GET", "/api/protected_instance/kill", params=params))
             for _ in range(10):
-                await asyncio.sleep(1)
-                alive, _ = get_instance_status(config.uuid, config.daemonId)
+                alive = get_instance_status(config.uuid, config.daemonId)
                 if alive == 0:
                     break
+                await asyncio.sleep(1)
             else:
                 self.log.info(f"{ctx.author.name} dead_reboot[重啟失敗] -> {instance_name}")
-                await response.edit_message(f"服務器 {instance_name} 重啟失敗", ephemeral=True)
+                await ctx.edit(content=f"服務器 {instance_name} 重啟失敗")
                 return
 
-            call_api("GET", "/api/protected_instance/open", params=params)
-            await response.edit_message(f"服務器 {instance_name} 啟動中", ephemeral=True)
+            print(call_api("GET", "/api/protected_instance/open", params=params))
+            await ctx.edit(content=f"服務器 {instance_name} 啟動中")
 
             for _ in range(10):
                 await asyncio.sleep(1)
-                alive, _ = get_instance_status(config.uuid, config.daemonId)
-                if alive == 1:
+                alive = get_instance_status(config.uuid, config.daemonId)
+                if alive == 3:
                     break
             else:
                 self.log.info(f"{ctx.author.name} dead_reboot[重啟失敗] -> {instance_name}")
-                await response.edit_message(f"服務器 {instance_name} 重啟失敗", ephemeral=True)
+                await ctx.edit(content=f"服務器 {instance_name} 重啟失敗")
                 return
 
             self.log.info(f"{ctx.author.name} dead_reboot[重啟成功] -> {instance_name}")
-            await response.edit_message(f"服務器 {instance_name} 重啟成功", ephemeral=True)
+            await ctx.edit(content=f"服務器 {instance_name} 重啟成功")
             return
 
-        await response.edit_message(f"服務器 {instance_name} 正常運行中，無需重啟", ephemeral=True)
+        await ctx.edit(content=f"服務器 {instance_name} 正常運行中，無需重啟")
 
     @discord.slash_command(name="添加白名單")
     @discord.option("mc_id", str, required=True)
@@ -435,7 +437,7 @@ class MinecraftCog(BaseCog):
         )
         await member.send(WARN_MESSAGE, embed=embed)
 
-    async def cog_before_invoke(self, ctx: ApplicationContext) -> None:
+    async def cog_before_invoke(self, _ctx: ApplicationContext) -> None:
         if not self.base_guild:
             self.base_guild = await self.bot.fetch_guild(BASE_GUILD_ID)
 

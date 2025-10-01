@@ -2,4 +2,4 @@ rich
 mcdreforged>=2.2.0
 python-socketio>=5.0.0
 PyYAML
-py-cord>=2.4.0
+py-cord==2.4.0
